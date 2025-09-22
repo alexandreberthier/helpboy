@@ -63,22 +63,12 @@ const countryKeys = {
   "spusu CH VoWiFi": "CH",
 };
 
-// Hilfsfunktion: Normalisieren
-function normalizeDeviceName(name: string): string {
-  return name
-      .replace(/\s+/g, " ") // doppelte Leerzeichen weg
-      .replace(/Ultra/gi, "Ultra") // Ultra einheitlich
-      .replace(/Pro\s+/gi, "Pro ") // Pro spacing fix
-      .replace(/\b5g\b/gi, "5G") // 5g -> 5G
-      .trim();
-}
-
 const parsed = computed(() => {
-  const result: Record<string, Record<string, Set<string>>> = {};
+  const result: Record<string, Record<string, string[]>> = {};
   let currentCountry: string | null = null;
   let currentBrand: string | null = null;
 
-  if (!rawInput.value) return {};
+  if (!rawInput.value) return result;
 
   rawInput.value.split("\n").forEach((line) => {
     line = line.trim();
@@ -91,7 +81,7 @@ const parsed = computed(() => {
         if (!result[currentCountry]) {
           result[currentCountry] = {};
           for (const value of Object.values(manufacturers)) {
-            result[currentCountry][value] = new Set();
+            result[currentCountry][value] = [];
           }
         }
         currentBrand = null;
@@ -99,14 +89,14 @@ const parsed = computed(() => {
       }
     }
 
-    // 2. Hersteller erkennen
+    // 2. Hersteller erkennen (case-insensitive)
     for (const [key, value] of Object.entries(manufacturers)) {
       const cleanLine = line
-          .replace(/^-?\d+(\.\d+)*\)?\s*/g, "")
-          .replace(/\s*\(.*?\)$/, "")
+          .replace(/^-?\d+(\.\d+)*\)?\s*/g, "") // Nummerierung weg
+          .replace(/\s*\(.*?\)$/, "") // (Hinweise) weg
           .trim();
 
-      if (cleanLine === key) {
+      if (cleanLine.toLowerCase() === key.toLowerCase()) {
         currentBrand = value;
         return;
       }
@@ -114,23 +104,25 @@ const parsed = computed(() => {
 
     // 3. Gerät hinzufügen
     if (currentCountry && currentBrand) {
-      const clean = line.replace(/^-?\d+(\.\d+)*\)?\s*/g, "").trim();
-      if (clean && clean !== "-") {
-        result[currentCountry][currentBrand].add(normalizeDeviceName(clean));
-      }
+      const clean = line
+          .replace(/^-?\d+(\.\d+)*\)?\s*/g, "")
+          .trim();
+
+      // leere Abschnitte oder Striche überspringen
+      if (!clean || clean === "-") return;
+
+      result[currentCountry][currentBrand].push(clean);
     }
   });
 
-  // Sets zurück in Arrays umwandeln
-  const finalResult: Record<string, Record<string, string[]>> = {};
-  for (const [country, brands] of Object.entries(result)) {
-    finalResult[country] = {};
-    for (const [brand, devices] of Object.entries(brands)) {
-      finalResult[country][brand] = Array.from(devices).sort();
+  // doppelte Geräte pro Hersteller entfernen
+  for (const country of Object.keys(result)) {
+    for (const brand of Object.keys(result[country])) {
+      result[country][brand] = Array.from(new Set(result[country][brand]));
     }
   }
 
-  return finalResult;
+  return result;
 });
 
 const formattedOutput = computed(() => {
@@ -149,12 +141,13 @@ const formattedOutput = computed(() => {
 async function copy(text: string) {
   try {
     await navigator.clipboard.writeText(text);
-    alert("Geräteliste kopiert ✅");
+    alert("Code kopiert ✅");
   } catch (err) {
     console.error("Fehler beim Kopieren:", err);
   }
 }
 </script>
+
 
 
 <style scoped>
