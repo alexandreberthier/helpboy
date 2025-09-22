@@ -63,12 +63,22 @@ const countryKeys = {
   "spusu CH VoWiFi": "CH",
 };
 
+// Hilfsfunktion: Normalisieren
+function normalizeDeviceName(name: string): string {
+  return name
+      .replace(/\s+/g, " ") // doppelte Leerzeichen weg
+      .replace(/Ultra/gi, "Ultra") // Ultra einheitlich
+      .replace(/Pro\s+/gi, "Pro ") // Pro spacing fix
+      .replace(/\b5g\b/gi, "5G") // 5g -> 5G
+      .trim();
+}
+
 const parsed = computed(() => {
-  const result: Record<string, Record<string, string[]>> = {};
+  const result: Record<string, Record<string, Set<string>>> = {};
   let currentCountry: string | null = null;
   let currentBrand: string | null = null;
 
-  if (!rawInput.value) return result;
+  if (!rawInput.value) return {};
 
   rawInput.value.split("\n").forEach((line) => {
     line = line.trim();
@@ -81,7 +91,7 @@ const parsed = computed(() => {
         if (!result[currentCountry]) {
           result[currentCountry] = {};
           for (const value of Object.values(manufacturers)) {
-            result[currentCountry][value] = [];
+            result[currentCountry][value] = new Set();
           }
         }
         currentBrand = null;
@@ -92,8 +102,8 @@ const parsed = computed(() => {
     // 2. Hersteller erkennen
     for (const [key, value] of Object.entries(manufacturers)) {
       const cleanLine = line
-          .replace(/^-?\d+(\.\d+)*\)?\s*/g, "") // Nummerierung weg
-          .replace(/\s*\(.*?\)$/, "") // (Hinweise) weg
+          .replace(/^-?\d+(\.\d+)*\)?\s*/g, "")
+          .replace(/\s*\(.*?\)$/, "")
           .trim();
 
       if (cleanLine === key) {
@@ -104,16 +114,23 @@ const parsed = computed(() => {
 
     // 3. Gerät hinzufügen
     if (currentCountry && currentBrand) {
-      const clean = line
-          .replace(/^-?\d+(\.\d+)*\)?\s*/g, "")
-          .trim();
+      const clean = line.replace(/^-?\d+(\.\d+)*\)?\s*/g, "").trim();
       if (clean && clean !== "-") {
-        result[currentCountry][currentBrand].push(clean);
+        result[currentCountry][currentBrand].add(normalizeDeviceName(clean));
       }
     }
   });
 
-  return result;
+  // Sets zurück in Arrays umwandeln
+  const finalResult: Record<string, Record<string, string[]>> = {};
+  for (const [country, brands] of Object.entries(result)) {
+    finalResult[country] = {};
+    for (const [brand, devices] of Object.entries(brands)) {
+      finalResult[country][brand] = Array.from(devices).sort();
+    }
+  }
+
+  return finalResult;
 });
 
 const formattedOutput = computed(() => {
@@ -132,13 +149,13 @@ const formattedOutput = computed(() => {
 async function copy(text: string) {
   try {
     await navigator.clipboard.writeText(text);
-    alert("Gucci kopiert Brudi");
+    alert("Geräteliste kopiert ✅");
   } catch (err) {
     console.error("Fehler beim Kopieren:", err);
   }
 }
-
 </script>
+
 
 <style scoped>
 .inner-content {
