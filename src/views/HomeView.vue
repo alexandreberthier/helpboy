@@ -215,6 +215,11 @@ function downloadFile() {
       font-family: SuseMono, sans-serif;
       font-size: 18px;
       cursor: pointer;
+      transition: all 200ms ease-in-out;
+
+      &:hover {
+        background: lightgrey;
+      }
     }
   }
 }
