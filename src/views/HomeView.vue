@@ -12,7 +12,9 @@
             rows="30"
         />
       </div>
-      <div @click="copy(formattedOutput)" v-if="formattedOutput.length" class="right">
+      <div v-if="formattedOutput.length" class="right">
+        <button @click="copy(formattedOutput)" >in Zwischenablage kopieren</button>
+        <button @click="downloadFile">Formatierte .txt downloaden</button>
         <pre>{{ formattedOutput }}</pre>
       </div>
     </div>
@@ -146,8 +148,20 @@ async function copy(text: string) {
     console.error("Fehler beim Kopieren:", err);
   }
 }
-</script>
 
+function downloadFile() {
+  const blob = new Blob([formattedOutput.value], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${mode.value}-devices.txt`; // Dateiname, z. B. volte-devices.txt
+  link.click();
+
+  URL.revokeObjectURL(url); // Speicher wieder freigeben
+}
+
+</script>
 
 
 <style scoped>
@@ -193,6 +207,15 @@ async function copy(text: string) {
     border: 2px dotted black;
     cursor: pointer;
     padding: 16px;
+
+    button {
+      background: none;
+      border: 2px solid black;
+      height: 50px;
+      font-family: SuseMono, sans-serif;
+      font-size: 18px;
+      cursor: pointer;
+    }
   }
 }
 

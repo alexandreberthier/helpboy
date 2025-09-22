@@ -20,6 +20,7 @@
   align-items: center;
   gap: 32px;
   width: 100%;
+  height: 100dvh;
 
   main {
     flex: 1;
